@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from core.estimator import closed_form_predict_many
-from core.metrics import l2_distance, estimate_lipschitz_pairwise
+# from core.metrics import l2_distance, estimate_lipschitz_pairwise
+from core.metrics import l1_distance, estimate_lipschitz_pairwise
 from core.targets import target_smooth_R2
 from core.samplers import sample_uniform_R2, make_grid_R2
 from core.evaluation import max_error, mse
@@ -70,8 +71,11 @@ def run_one_experiment(
     seed=0,
 ):
     # Space: X = [low, high]^2 subset R^2
-    # Metric: rho(x,y) = ||x-y||_2
-    rho = l2_distance
+    # # Metric: rho(x,y) = ||x-y||_2
+    # rho = l2_distance
+
+    # Metric: rho(x,y) = ||x-y||_1
+    rho = l1_distance
 
     # Target function
     f = target_smooth_R2
@@ -116,7 +120,7 @@ def run_one_experiment(
     figures_dir = PROJECT_ROOT / "results" / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    save_path = figures_dir / f"exp_R2_N{N_train}.png"
+    save_path = figures_dir / f"exp_R2_N{N_train}.pdf"
 
     plot_R2_results_no_dots(
         X1=X1,

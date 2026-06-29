@@ -16,24 +16,63 @@ def mse(Y_true, Y_pred):
     return np.mean((Y_true - Y_pred) ** 2)
 
 
-def plot_R_results(X_train, Y_train, X_test, Y_test, Y_hat_test, save_path=None):
-    fig, ax = plt.subplots(figsize=(7, 4))
+def plot_R_results(
+    X_train,
+    Y_train,
+    X_test,
+    Y_test,
+    Y_hat_test,
+    Y_lower_test=None,
+    Y_upper_test=None,
+    show_training=True,
+    save_path=None,
+):
+    fig, ax = plt.subplots(figsize=(9, 5.5))
 
-    ax.plot(X_test, Y_test, label=r"$f$ target", linewidth=1.5)
-    ax.scatter(X_train, Y_train, label="Training data", s=20)
+    ax.plot(X_test, Y_test, label=r"$f$ target", linewidth=2.2)
 
-    ax.plot(X_test, Y_hat_test, label=r"$\hat f$ estimator", linewidth=1.5)
+    if show_training:
+        ax.scatter(
+            X_train,
+            Y_train,
+            label="Training data",
+            s=45,
+            zorder=3,
+        )
+
+    if Y_lower_test is not None:
+        ax.plot(
+            X_test,
+            Y_lower_test,
+            "--",
+            label="lower envelope",
+            linewidth=2.2,
+            alpha=0.9,
+        )
+
+    if Y_upper_test is not None:
+        ax.plot(
+            X_test,
+            Y_upper_test,
+            "--",
+            label="upper envelope",
+            linewidth=2.2,
+            alpha=0.9,
+        )
+
+    ax.plot(X_test, Y_hat_test, label=r"$\hat f$ estimator", linewidth=2.2)
 
     ax.set_xlabel("x")
     ax.set_ylabel("value")
     ax.legend()
     ax.grid(alpha=0.3)
 
+    fig.tight_layout()
+
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=200)
+        fig.savefig(save_path, bbox_inches="tight", dpi=300)
 
     return fig, ax
-
 
 def plot_R2_results(X_train, X1, X2, Y_test_grid, Y_hat_grid, save_path=None):
     """

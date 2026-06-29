@@ -46,6 +46,14 @@ def l2_distance(x, y):
     y = np.asarray(y)
     return np.linalg.norm(x - y)
 
+def l1_distance(x, y):
+    """
+    L1 distance on R^d.
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    return np.sum(np.abs(x - y))
+
 
 def estimate_lipschitz_pairwise(X, Y, rho, eps=1e-12):
     """
