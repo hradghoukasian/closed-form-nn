@@ -399,7 +399,7 @@ def plot_lambda_sweep(lambdas, l1_all, l2_all, init_sigma, save_path):
     ax.set_title(rf"GD recovery for fixed $\sigma={init_sigma}$")
 
     # Allows lambda = 0 while keeping log-like scale for positive lambda.
-    ax.set_xscale("symlog", linthresh=1e-5)
+    ax.set_xscale("symlog", linthresh=1e-3)
     ax.set_yscale("log")
 
     ax.grid(alpha=0.3)
@@ -692,40 +692,52 @@ def main():
     # Main settings
     # --------------------------------------------------------
     d = 2
-    N_train = 100
+    N_train = 50
     low, high = -1.0, 1.0
 
     # Choose "l2" or "l1"
-    metric = "l1"
+    metric = "l2"
+
 
     # GD settings
     eta = 1e-3
-    num_steps = 3000
+    num_steps = 1000
 
     # Repetitions
-    num_trials = 2
+    num_trials = 20
 
     # --------------------------------------------------------
     # Lambda sweep settings
     # --------------------------------------------------------
-    init_sigma_for_lambda_sweep = 5e-4
+    init_sigma_for_lambda_sweep = 5e-3
+
+    # lambdas = np.array([
+    #     0.0,
+    #     1e-5,
+    #     3e-5,
+    #     1e-4,
+    #     3e-4,
+    #     1e-3,
+    #     3e-3,
+    #     1e-2,
+    #     3e-2,
+    #     1e-1,
+    #     2e-1,
+    #     3e-1,
+    #     5e-1,
+    #     7e-1,
+    #     1.0,
+    # ])
 
     lambdas = np.array([
         0.0,
-        1e-5,
-        3e-5,
-        1e-4,
-        3e-4,
         1e-3,
-        3e-3,
         1e-2,
-        3e-2,
         1e-1,
-        2e-1,
-        3e-1,
         5e-1,
-        7e-1,
         1.0,
+        3.0,
+        5.0,
     ])
 
     # --------------------------------------------------------
@@ -743,8 +755,16 @@ def main():
         1e-3,
         3e-3,
         1e-2,
+        1e-1
     ])
 
+    # sigmas = np.array([
+    #     1e-5,
+    #     1e-4,
+    #     1e-3,
+    #     1e-2,
+    #     1e-1
+    # ])
     # --------------------------------------------------------
     # Directories
     # --------------------------------------------------------
