@@ -2,9 +2,8 @@
 Experiment 1: noisy 1D recovery
 
 Compare:
-  1) ReLU MLP ERM trained on noisy labels.
+  1) ReLU MLP ADAM trained on noisy labels.
   2) Noisy universal formula: local averaging + closed-form midpoint.
-
 
 """
 
@@ -45,7 +44,7 @@ VAL_FRAC = 0.2
 
 SIGMAS = [0.0, 0.05, 0.1, 0.2, 0.4, 0.6,0.8,1,1.2,1.5]
 # SIGMAS = [0.0, 0.05, 0.1, 0.2, 0.4,0.8,1.6,3.2]
-RECOVERY_SIGMAS = [1.6,3.2]
+RECOVERY_SIGMAS = [0.05,0.8]
 
 NUM_BETAS = 30
 L_SAFETY = 1.05
@@ -244,7 +243,7 @@ def run_one(sigma, run, X_test, Y_test):
 # ---------------------------------------------------------------------
 def plot_mse(summary):
     plt.figure(figsize=(9, 5.5))
-    plt.errorbar(summary["sigma"], summary["mlp_mse_mean"], yerr=summary["mlp_mse_std"], marker="o", capsize=4, label="ReLU MLP ERM")
+    plt.errorbar(summary["sigma"], summary["mlp_mse_mean"], yerr=summary["mlp_mse_std"], marker="o", capsize=4, label="ReLU MLP (Adam)")
     plt.errorbar(summary["sigma"], summary["uf_mse_mean"], yerr=summary["uf_mse_std"], marker="s", capsize=4, label="Universal formula")
     plt.xlabel(r"Noise standard deviation $\sigma$")
     plt.ylabel(r"Clean test MSE to $f$")
@@ -256,12 +255,30 @@ def plot_mse(summary):
     plt.close()
 
 
+def plot_beta(summary):
+    plt.figure(figsize=(9, 5.5))
+    plt.errorbar(
+        summary["sigma"],
+        summary["beta_star_mean"],
+        yerr=summary["beta_star_std"],
+        marker="o",
+        capsize=4,
+    )
+    plt.xlabel(r"Noise standard deviation $\sigma$")
+    plt.ylabel(r"Selected neighborhood radius $\beta^*$")
+    plt.title(r"Selected $\beta^*$ versus noise")
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / "exp_noisy_R_simple_beta_vs_sigma.png", dpi=300)
+    plt.close()
+
+
 def plot_recovery(payload):
     sigma, X, Y, X_test, Y_test, pred_mlp, pred_uf, beta_star = payload
 
     plt.figure(figsize=(9, 5.5))
     plt.plot(X_test, Y_test, label=r"Ground truth $f$", linewidth=3)
-    plt.plot(X_test, pred_mlp, "--", label="ReLU MLP ERM")
+    plt.plot(X_test, pred_mlp, "--", label="ReLU MLP (Adam)")
     plt.plot(X_test, pred_uf, ":", label=rf"Universal formula, $\beta^*={beta_star:.3g}$", linewidth=3)
 
     # show only some noisy samples for readability
@@ -316,6 +333,7 @@ def main():
     summary.to_csv(RES_DIR / "exp_noisy_R_simple_summary.csv", index=False)
 
     plot_mse(summary)
+    plot_beta(summary)
     for payload in recoveries:
         plot_recovery(payload)
 

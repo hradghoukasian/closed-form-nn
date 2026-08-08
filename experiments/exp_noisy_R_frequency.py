@@ -2,7 +2,7 @@
 Experiment 2: effect of sinusoidal frequency at fixed noise
 
 Compare:
-  1) ReLU MLP ERM trained on noisy labels.
+  1) ReLU MLP ADAM trained on noisy labels.
   2) Noisy universal formula: local averaging + closed-form midpoint.
 
 The noise level is fixed, and the target frequency omega changes:
@@ -47,8 +47,9 @@ VAL_FRAC = 0.2
 SIGMA = 0.1
 
 # Frequencies to test.
-OMEGAS = [1, 5,10,15,20]
-RECOVERY_OMEGAS = [1, 10, 20]
+# OMEGAS = [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+OMEGAS = [1,5,10,15,20,25,30,35,40,45,50]
+RECOVERY_OMEGAS = [5, 15, 30,50]
 
 NUM_BETAS = 30
 L_SAFETY = 1.05
@@ -253,7 +254,7 @@ def run_one(omega, run, X_test, Y_test):
 # ---------------------------------------------------------------------
 def plot_mse(summary):
     plt.figure(figsize=(9, 5.5))
-    plt.errorbar(summary["omega"], summary["mlp_mse_mean"], yerr=summary["mlp_mse_std"], marker="o", capsize=4, label="ReLU MLP ERM")
+    plt.errorbar(summary["omega"], summary["mlp_mse_mean"], yerr=summary["mlp_mse_std"], marker="o", capsize=4, label="ReLU MLP (Adam)")
     plt.errorbar(summary["omega"], summary["uf_mse_mean"], yerr=summary["uf_mse_std"], marker="s", capsize=4, label="Universal formula")
     plt.xlabel(r"Frequency $\omega$")
     plt.ylabel(r"Clean test MSE to $f_\omega$")
@@ -282,7 +283,7 @@ def plot_recovery(payload):
 
     plt.figure(figsize=(9, 5.5))
     plt.plot(X_test, Y_test, label=rf"Ground truth $f_{{\omega}}$, $\omega={omega}$", linewidth=3)
-    plt.plot(X_test, pred_mlp, "--", label="ReLU MLP ERM")
+    plt.plot(X_test, pred_mlp, "--", label="ReLU MLP (Adam)")
     plt.plot(X_test, pred_uf, ":", label=rf"Universal formula, $\beta^*={beta_star:.3g}$", linewidth=3)
 
     idx = np.linspace(0, len(X) - 1, min(400, len(X))).astype(int)
@@ -347,3 +348,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
