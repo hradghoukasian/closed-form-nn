@@ -533,7 +533,7 @@ def main():
     d = 100
     metric = "l2"   # choose "l2" or "l1"
 
-    N_train = 50
+    N_train = 1*(10**4)
     N_test = 2000
     N_lip = 1000
 

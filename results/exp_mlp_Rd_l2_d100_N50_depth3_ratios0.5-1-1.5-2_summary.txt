@@ -1,0 +1,21 @@
+Comparison of the closed-form estimator and ReLU MLPs
+
+d=100; metric=l2; domain=[-1, 1]^d; N_train=50; N_test=2000; N_lip=1000; runs=20.
+MLP hidden depth=3; Adam learning rate=0.001; epoch setting=1000 (1001 optimizer updates).
+
+                Method  Scalars Actual ratio to formula              Test MSE ± std Empirical Lip. ± std
+           Closed form     5051       1.0000x (100.00%) 1.978110e-01 ± 1.217675e-02  0.042361 ± 0.005979
+ MLP W=18 (target 50%)     2521        0.4991x (49.91%) 1.613285e-01 ± 3.876464e-02  0.168973 ± 0.023140
+MLP W=31 (target 100%)     5147       1.0190x (101.90%) 1.460561e-01 ± 1.668672e-02  0.159167 ± 0.015984
+MLP W=41 (target 150%)     7627       1.5100x (151.00%) 1.444568e-01 ± 1.617121e-02  0.164627 ± 0.018030
+MLP W=50 (target 200%)    10201       2.0196x (201.96%) 1.447606e-01 ± 2.086355e-02  0.153715 ± 0.013223
+
+Formula scalars = N_train * (d + 1) + 1 = 5051.
+These are the sample coordinates, labels, and one shared L.
+MLP scalars count all weights and biases, excluding optimizer state.
+Actual ratio = stored scalars of the method / formula scalars.
+For example, 1.5x means 150% of the formula's scalar count.
+Target percentages determine the nearest integer hidden width; the table reports the achieved percentages.
+With d, hidden depth, and target ratios fixed, N_train determines the scalar budgets and selected widths.
+Counts measure scalar values, not bytes; the formula count refers to its direct stored representation.
+The reported standard deviations are sample standard deviations across runs. Empirical Lipschitz estimates are not certified upper bounds.
