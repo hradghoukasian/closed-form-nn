@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -261,6 +263,42 @@ def predict_mlp_Rd(model, X):
 # One experiment
 # ============================================================
 
+def width_for_parameter_budget(target, input_dim, depth):
+    """Return the positive integer width nearest a scalar parameter budget.
+
+    A scalar-output MLP with `depth` equal-width ReLU hidden layers has
+    (depth - 1) * width**2 + (input_dim + depth + 1) * width + 1
+    weights and biases. Ties are resolved in favor of fewer parameters.
+    """
+    if input_dim < 1 or depth < 1:
+        raise ValueError("input_dim and depth must be at least 1")
+    if not math.isfinite(target) or target <= 0:
+        raise ValueError("target must be finite and positive")
+
+    a = depth - 1
+    b = input_dim + depth + 1
+    if a == 0:
+        continuous_width = (target - 1) / b
+    else:
+        # Stable form of the positive quadratic root; widths below 1
+        # are handled by the minimum-width constraint below.
+        c = max(target - 1, 0)
+        continuous_width = 2 * c / (b + math.sqrt(b * b + 4 * a * c))
+
+    lower = max(1, math.floor(continuous_width))
+
+    def parameter_count(width):
+        return a * width**2 + b * width + 1
+
+    return min(
+        (lower, lower + 1),
+        key=lambda width: (
+            abs(parameter_count(width) - target),
+            parameter_count(width),
+        ),
+    )
+
+
 def run_one_experiment(
     run_seed,
     d=2,
@@ -271,13 +309,17 @@ def run_one_experiment(
     high=1.0,
     metric="l2",
     lipschitz_safety=1.05,
-    mlp_widths=(64, 128),
+    mlp_ratios=(0.5, 1.0, 1.5, 2.0),
     mlp_depth=3,
     mlp_lr=1e-3,
     mlp_epochs=5000,
 ):
     """
-    Compare closed-form estimator and MLPs of several widths for one random run.
+    Compare the formula with MLPs targeting fractions of its stored scalars.
+
+    Formula storage is N_train * (d + 1) + 1: coordinates, labels and one L.
+    MLP storage counts all weights and biases, excluding optimizer state.
+    Widths are integers, so actual ratios can differ from target ratios.
 
     Randomness:
       - target function f
@@ -286,6 +328,11 @@ def run_one_experiment(
       - MLP initialization
     """
     rho = get_metric(metric)
+    mlp_ratios = tuple(float(ratio) for ratio in mlp_ratios)
+    if not mlp_ratios or any(
+        not math.isfinite(ratio) or ratio <= 0 for ratio in mlp_ratios
+    ):
+        raise ValueError("mlp_ratios must contain finite positive ratios")
 
     # --------------------------------------------------------
     # Random exactly 1-Lipschitz target
@@ -328,6 +375,7 @@ def run_one_experiment(
     )
 
     rows = []
+    formula_scalars = int(X_train.size + Y_train.size + 1)
 
     # --------------------------------------------------------
     # Closed-form estimator
@@ -370,12 +418,23 @@ def run_one_experiment(
         "empirical_lipschitz": cf_emp_lip,
         "L_hat_train": L_hat,
         "L_used_cf": L_used,
+        "width": None,
+        "mlp_depth": None,
+        "target_scalar_ratio": 1.0,
+        "stored_scalars": formula_scalars,
+        "formula_scalars": formula_scalars,
+        "scalar_ratio_to_formula": 1.0,
     })
 
     # --------------------------------------------------------
     # MLPs
     # --------------------------------------------------------
-    for width in mlp_widths:
+    for target_ratio in mlp_ratios:
+        width = width_for_parameter_budget(
+            target=target_ratio * formula_scalars,
+            input_dim=d,
+            depth=mlp_depth,
+        )
         model = train_mlp_Rd(
             X_train=X_train,
             Y_train=Y_train,
@@ -386,6 +445,7 @@ def run_one_experiment(
             seed=run_seed + 404 + width,
             print_every=None,
         )
+        mlp_scalars = sum(parameter.numel() for parameter in model.parameters())
 
         Y_mlp_test = predict_mlp_Rd(model, X_test)
         Y_mlp_lip = predict_mlp_Rd(model, X_lip)
@@ -399,7 +459,7 @@ def run_one_experiment(
 
         rows.append({
             "run": run_seed,
-            "method": f"MLP W={width}",
+            "method": f"MLP target={target_ratio}x",
             "d": d,
             "metric": metric,
             "N_train": N_train,
@@ -409,6 +469,12 @@ def run_one_experiment(
             "empirical_lipschitz": mlp_emp_lip,
             "L_hat_train": np.nan,
             "L_used_cf": np.nan,
+            "width": width,
+            "mlp_depth": mlp_depth,
+            "target_scalar_ratio": target_ratio,
+            "stored_scalars": mlp_scalars,
+            "formula_scalars": formula_scalars,
+            "scalar_ratio_to_formula": mlp_scalars / formula_scalars,
         })
 
     return rows
@@ -420,9 +486,9 @@ def run_one_experiment(
 
 def summarize_results(df):
     """
-    Summary table with mean and std for test MSE and empirical Lipschitzness.
+    Summarize errors, empirical Lipschitz estimates, and scalar budgets.
     """
-    method_order = ["Closed form", "MLP W=64", "MLP W=128"]
+    method_order = df["method"].drop_duplicates().tolist()
 
     rows = []
 
@@ -437,6 +503,14 @@ def summarize_results(df):
 
         rows.append({
             "method": method,
+            "width": sub["width"].iloc[0],
+            "mlp_depth": sub["mlp_depth"].iloc[0],
+            "target_scalar_ratio": float(sub["target_scalar_ratio"].iloc[0]),
+            "stored_scalars": int(sub["stored_scalars"].iloc[0]),
+            "formula_scalars": int(sub["formula_scalars"].iloc[0]),
+            "scalar_ratio_to_formula": float(
+                sub["scalar_ratio_to_formula"].iloc[0]
+            ),
             "test_mse_mean": test_mse_mean,
             "test_mse_std": test_mse_std,
             "test_mse_mean_pm_std": f"{test_mse_mean:.6e} ± {test_mse_std:.6e}",
@@ -470,9 +544,9 @@ def main():
 
     lipschitz_safety = 1.05
 
-    # MLP architectures:
-    # d -> W -> W -> W -> 1
-    mlp_widths = (64, 128)
+    # Target 50%, 100%, 150%, and 200% of formula storage.
+    # Each equal-width architecture uses the nearest integer width.
+    mlp_ratios = (0.5, 1.0, 1.5, 2.0)
     mlp_depth = 3
     mlp_lr = 1e-3
     mlp_epochs = 1000
@@ -484,7 +558,7 @@ def main():
     print("N_test:", N_test)
     print("N_lip:", N_lip)
     print("num_runs:", num_runs)
-    print("MLP widths:", mlp_widths)
+    print("MLP target scalar ratios:", mlp_ratios)
     print("MLP depth:", mlp_depth)
     print("MLP epochs:", mlp_epochs)
 
@@ -508,7 +582,7 @@ def main():
             high=high,
             metric=metric,
             lipschitz_safety=lipschitz_safety,
-            mlp_widths=mlp_widths,
+            mlp_ratios=mlp_ratios,
             mlp_depth=mlp_depth,
             mlp_lr=mlp_lr,
             mlp_epochs=mlp_epochs,
@@ -521,6 +595,14 @@ def main():
                 row["test_mse"],
                 "empirical Lip:",
                 row["empirical_lipschitz"],
+                "width:",
+                row["width"],
+                "stored scalars:",
+                row["stored_scalars"],
+                "target ratio:",
+                row["target_scalar_ratio"],
+                "actual ratio:",
+                row["scalar_ratio_to_formula"],
             )
 
         all_rows.extend(rows)
@@ -529,16 +611,63 @@ def main():
     summary_df = summarize_results(raw_df)
 
     # --------------------------------------------------------
-    # Save only CSV tables, no PDF, no plots
+    # Save CSV results and a readable text summary table
     # --------------------------------------------------------
     results_dir = PROJECT_ROOT / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_path = results_dir / f"exp_mlp_Rd_{metric}_raw.csv"
-    summary_path = results_dir / f"exp_mlp_Rd_{metric}_summary.csv"
+    ratio_tag = "-".join(f"{ratio:g}" for ratio in mlp_ratios)
+    output_stem = (
+        f"exp_mlp_Rd_{metric}_d{d}_N{N_train}_depth{mlp_depth}"
+        f"_ratios{ratio_tag}"
+    )
+    raw_path = results_dir / f"{output_stem}_raw.csv"
+    summary_path = results_dir / f"{output_stem}_summary.csv"
+    text_path = results_dir / f"{output_stem}_summary.txt"
 
     raw_df.to_csv(raw_path, index=False)
     summary_df.to_csv(summary_path, index=False)
+
+    # Show actual parameter ratios: integer widths only approximate the targets.
+    text_table = pd.DataFrame({
+        "Method": [
+            "Closed form" if pd.isna(row.width) else (
+                f"MLP W={int(row.width)} "
+                f"(target {100 * row.target_scalar_ratio:g}%)"
+            )
+            for row in summary_df.itertuples(index=False)
+        ],
+        "Scalars": summary_df["stored_scalars"].astype(int),
+        "Actual ratio to formula": summary_df["scalar_ratio_to_formula"].map(
+            lambda ratio: f"{ratio:.4f}x ({100 * ratio:.2f}%)"
+        ),
+        "Test MSE ± std": summary_df["test_mse_mean_pm_std"],
+        "Empirical Lip. ± std": summary_df["empirical_lipschitz_mean_pm_std"],
+    })
+    formula_scalars = int(summary_df["formula_scalars"].iloc[0])
+    text_content = (
+        "Comparison of the closed-form estimator and ReLU MLPs\n\n"
+        f"d={d}; metric={metric}; domain=[{low:g}, {high:g}]^d; "
+        f"N_train={N_train}; N_test={N_test}; N_lip={N_lip}; runs={num_runs}.\n"
+        f"MLP hidden depth={mlp_depth}; Adam learning rate={mlp_lr:g}; "
+        f"epoch setting={mlp_epochs} ({mlp_epochs + 1} optimizer updates).\n\n"
+        + text_table.to_string(index=False)
+        + "\n\n"
+        + f"Formula scalars = N_train * (d + 1) + 1 = {formula_scalars}.\n"
+        + "These are the sample coordinates, labels, and one shared L.\n"
+        + "MLP scalars count all weights and biases, excluding optimizer state.\n"
+        + "Actual ratio = stored scalars of the method / formula scalars.\n"
+        + "For example, 1.5x means 150% of the formula's scalar count.\n"
+        + "Target percentages determine the nearest integer hidden width; "
+        + "the table reports the achieved percentages.\n"
+        + "With d, hidden depth, and target ratios fixed, N_train determines "
+        + "the scalar budgets and selected widths.\n"
+        + "Counts measure scalar values, not bytes; the formula count refers "
+        + "to its direct stored representation.\n"
+        + "The reported standard deviations are sample standard deviations "
+        + "across runs. Empirical Lipschitz estimates are not certified upper bounds.\n"
+    )
+    text_path.write_text(text_content, encoding="utf-8")
 
     print("\nSummary table:")
     print(summary_df.to_string(index=False))
@@ -546,6 +675,7 @@ def main():
     print("\nSaved files:")
     print(raw_path)
     print(summary_path)
+    print(text_path)
 
 
 if __name__ == "__main__":
