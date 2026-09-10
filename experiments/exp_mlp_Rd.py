@@ -1,4 +1,21 @@
+"""Place at experiments/exp_mlp_Rd.py; run from the repository root with
+PYTHONPATH=. python3 experiments/exp_mlp_Rd.py
+
+Five-fold training-only CV selects additive Lipschitz slack on 20 grid points.
+Each budget trains vanilla, spectral-normalized, and orthogonal ReLU networks.
+Constrained predictors use the CV-selected formula L as an upper bound, not as
+a claim that their actual Lipschitz constant equals L. Spectral bounds also
+bound input-l1 Lipschitz constants, since ||x||2 <= ||x||1.
+
+All three families have equal stored dense weights/biases for each width.
+SN has extra temporary power-iteration buffers during training; these are
+removed before evaluation. Orthogonal constraints reduce independent degrees
+of freedom despite identical storage counts. Adam state is excluded throughout.
+The anchor's epoch loop (num_epochs + 1 updates) is retained.
+"""
+
 import math
+import json
 
 import numpy as np
 import pandas as pd
@@ -7,6 +24,8 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.nn.utils.parametrizations import spectral_norm, orthogonal
+from torch.nn.utils.parametrize import remove_parametrizations
 
 from core.estimator import closed_form_predict_many
 from core.evaluation import mse
@@ -75,15 +94,73 @@ def estimate_lipschitz_pairwise_fast(X, Y, metric, eps=1e-12):
     X = np.asarray(X)
     Y = np.asarray(Y)
 
-    D = pairwise_distances(X, metric)
-    DY = np.abs(Y[:, None] - Y[None, :])
-
-    mask = D > eps
-
-    if not np.any(mask):
+    best = None
+    for i in range(0, len(X), 128):
+        for j in range(i, len(X), 128):
+            D = cross_distances(X[i:i+128], X[j:j+128], metric)
+            DY = np.abs(Y[i:i+128, None] - Y[None, j:j+128])
+            mask = D > eps
+            if np.any(mask):
+                value = float(np.max(DY[mask] / D[mask]))
+                best = value if best is None else max(best, value)
+    if best is None:
         raise ValueError("Cannot estimate Lipschitz constant: all distances are zero.")
+    return best
 
-    return np.max(DY[mask] / D[mask])
+
+def cross_distances(A, B, metric):
+    diff = A[:, None, :] - B[None, :, :]
+    if metric == "l2":
+        return np.linalg.norm(diff, axis=2)
+    if metric == "l1":
+        return np.abs(diff).sum(axis=2)
+    raise ValueError("metric must be l1 or l2")
+
+
+def formula_grid_predict(X, X_train, Y_train, candidates, metric):
+    """Same midpoint formula, bounded memory; reuse distances for every L."""
+    output = np.empty((len(candidates), len(X)))
+    for i in range(0, len(X), 64):
+        lower = np.full((len(candidates), min(64, len(X)-i)), -np.inf)
+        upper = np.full_like(lower, np.inf)
+        for j in range(0, len(X_train), 128):
+            D = cross_distances(X[i:i+64], X_train[j:j+128], metric)
+            labels = Y_train[j:j+128]
+            for k, L in enumerate(candidates):
+                lower[k] = np.maximum(lower[k], (labels - L*D).max(axis=1))
+                upper[k] = np.minimum(upper[k], (labels + L*D).min(axis=1))
+        output[:, i:i+64] = 0.5*(lower+upper)
+    return output
+
+
+def select_lipschitz_cv(X, Y, metric, seed, folds=5, grid_size=20, span=2.0):
+    """CV additive slack using fold-local L_D, then refit L on all training data.
+
+    Using full-data L_D inside folds would leak validation labels. Every fold
+    therefore evaluates L_D(fold train) + linspace(0, span, grid_size).
+    Weighted validation MSE selects the offset (ties favor smaller L).
+    """
+    if not 2 <= folds <= len(X)//2 or grid_size < 2 or not np.isfinite(span) or span < 0:
+        raise ValueError("Need >=2 training points per fold, >=2 grid points, span >=0")
+    offsets = np.linspace(0.0, span, grid_size)
+    splits = np.array_split(np.random.default_rng(seed).permutation(len(X)), folds)
+    squared_errors = np.zeros(grid_size)
+    fold_bases = []
+    for fold, validation in enumerate(splits):
+        train = np.concatenate([part for i, part in enumerate(splits) if i != fold])
+        base = estimate_lipschitz_pairwise_fast(X[train], Y[train], metric)
+        fold_bases.append(base)
+        prediction = formula_grid_predict(X[validation], X[train], Y[train], base+offsets, metric)
+        squared_errors += ((prediction-Y[validation])**2).sum(axis=1)
+    scores = squared_errors/len(X)
+    best = int(np.argmin(scores))
+    full_base = estimate_lipschitz_pairwise_fast(X, Y, metric)
+    return full_base, full_base+float(offsets[best]), {
+        "cv_offset": float(offsets[best]), "cv_mse": float(scores[best]),
+        "cv_offsets": json.dumps(offsets.tolist()),
+        "cv_scores": json.dumps(scores.tolist()),
+        "cv_fold_L_D": json.dumps(fold_bases), "cv_folds": folds,
+    }
 
 
 def empirical_lipschitz_on_points(X, Y_pred, metric, eps=1e-12):
@@ -187,7 +264,34 @@ class ReLUMlpRd(nn.Module):
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.net(x)
+        return getattr(self, "output_scale", 1.0) * self.net(x)
+
+
+def materialize_constraints(model, family, L):
+    """Bake weights and gain into ordinary Linear layers: no inference buffers.
+
+    SN power iteration is approximate during training. Full SVD normalizes each
+    evaluated SN matrix; the final gain gives a numerical norm-product bound L.
+    Orthogonal matrices are semi-orthogonal when rectangular. Their stored
+    entries match vanilla counts, although independent degrees of freedom differ.
+    """
+    model.eval()
+    layers = [layer for layer in model.net if isinstance(layer, nn.Linear)]
+    with torch.no_grad():
+        for layer in layers:
+            remove_parametrizations(layer, "weight", leave_parametrized=True)
+            if family == "spectral":
+                norm = torch.linalg.matrix_norm(layer.weight.double(), ord=2).item()
+                if norm > 0:
+                    layer.weight.div_(norm)
+        product = math.prod(torch.linalg.matrix_norm(layer.weight.double(), ord=2).item() for layer in layers)
+        # Absorb rounding correction into the output gain, preserving orthogonality
+        # of the hidden matrices. Bias has no effect on Lipschitz bounds.
+        scale = L / max(1.0, product) * (1.0 - 1e-6)
+        layers[-1].weight.mul_(scale)
+        layers[-1].bias.mul_(L)
+    model.output_scale = 1.0
+    return model
 
 
 def train_mlp_Rd(
@@ -199,6 +303,8 @@ def train_mlp_Rd(
     num_epochs=5000,
     seed=0,
     print_every=None,
+    family="unconstrained",
+    lipschitz_bound=1.0,
 ):
     """
     Train vanilla ReLU MLP on noiseless R^d training data.
@@ -225,6 +331,19 @@ def train_mlp_Rd(
         depth=depth,
     ).to(device)
 
+    if family not in ("unconstrained", "spectral", "orthogonal"):
+        raise ValueError("Unknown MLP family")
+    if not math.isfinite(lipschitz_bound) or lipschitz_bound < 0:
+        raise ValueError("lipschitz_bound must be finite and nonnegative")
+    if family != "unconstrained":
+        for layer in model.net:
+            if isinstance(layer, nn.Linear):
+                if family == "spectral":
+                    spectral_norm(layer, n_power_iterations=5)
+                else:
+                    orthogonal(layer, orthogonal_map="householder", use_trivialization=False)
+        model.output_scale = lipschitz_bound
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
 
@@ -240,6 +359,8 @@ def train_mlp_Rd(
         if print_every is not None and epoch % print_every == 0:
             print(f"epoch={epoch}, train_mse={loss.item():.6e}")
 
+    if family != "unconstrained":
+        materialize_constraints(model, family, lipschitz_bound)
     return model
 
 
@@ -308,7 +429,9 @@ def run_one_experiment(
     low=-1.0,
     high=1.0,
     metric="l2",
-    lipschitz_safety=1.05,
+    cv_folds=5,
+    cv_grid_size=20,
+    cv_span=2.0,
     mlp_ratios=(0.5, 1.0, 1.5, 2.0),
     mlp_depth=3,
     mlp_lr=1e-3,
@@ -380,24 +503,13 @@ def run_one_experiment(
     # --------------------------------------------------------
     # Closed-form estimator
     # --------------------------------------------------------
-    L_hat = estimate_lipschitz_pairwise_fast(X_train, Y_train, metric=metric)
-    L_used = lipschitz_safety * L_hat
-
-    Y_cf_test = closed_form_predict_many(
-        X_test=X_test,
-        X_train=X_train,
-        Y_train=Y_train,
-        L=L_used,
-        rho=rho,
+    L_hat, L_used, cv_info = select_lipschitz_cv(
+        X_train, Y_train, metric, run_seed+505,
+        folds=cv_folds, grid_size=cv_grid_size, span=cv_span,
     )
 
-    Y_cf_lip = closed_form_predict_many(
-        X_test=X_lip,
-        X_train=X_train,
-        Y_train=Y_train,
-        L=L_used,
-        rho=rho,
-    )
+    Y_cf_test = formula_grid_predict(X_test, X_train, Y_train, [L_used], metric)[0]
+    Y_cf_lip = formula_grid_predict(X_lip, X_train, Y_train, [L_used], metric)[0]
 
     cf_test_mse = mse(Y_test, Y_cf_test)
     cf_emp_lip = empirical_lipschitz_on_points(
@@ -409,6 +521,9 @@ def run_one_experiment(
     rows.append({
         "run": run_seed,
         "method": "Closed form",
+        "family": "formula",
+        "lipschitz_bound": L_used,
+        **cv_info,
         "d": d,
         "metric": metric,
         "N_train": N_train,
@@ -435,47 +550,58 @@ def run_one_experiment(
             input_dim=d,
             depth=mlp_depth,
         )
-        model = train_mlp_Rd(
-            X_train=X_train,
-            Y_train=Y_train,
-            width=width,
-            depth=mlp_depth,
-            lr=mlp_lr,
-            num_epochs=mlp_epochs,
-            seed=run_seed + 404 + width,
-            print_every=None,
-        )
-        mlp_scalars = sum(parameter.numel() for parameter in model.parameters())
-
-        Y_mlp_test = predict_mlp_Rd(model, X_test)
-        Y_mlp_lip = predict_mlp_Rd(model, X_lip)
-
-        mlp_test_mse = mse(Y_test, Y_mlp_test)
-        mlp_emp_lip = empirical_lipschitz_on_points(
-            X_lip,
-            Y_mlp_lip,
-            metric=metric,
-        )
-
-        rows.append({
-            "run": run_seed,
-            "method": f"MLP target={target_ratio}x",
-            "d": d,
-            "metric": metric,
-            "N_train": N_train,
-            "N_test": N_test,
-            "N_lip": N_lip,
-            "test_mse": mlp_test_mse,
-            "empirical_lipschitz": mlp_emp_lip,
-            "L_hat_train": np.nan,
-            "L_used_cf": np.nan,
-            "width": width,
-            "mlp_depth": mlp_depth,
-            "target_scalar_ratio": target_ratio,
-            "stored_scalars": mlp_scalars,
-            "formula_scalars": formula_scalars,
-            "scalar_ratio_to_formula": mlp_scalars / formula_scalars,
-        })
+        for family, family_name in (("unconstrained", "MLP"), ("spectral", "SN MLP"), ("orthogonal", "Orthogonal MLP")):
+            model = train_mlp_Rd(
+                X_train=X_train,
+                Y_train=Y_train,
+                width=width,
+                depth=mlp_depth,
+                lr=mlp_lr,
+                num_epochs=mlp_epochs,
+                seed=run_seed + 404 + width,
+                print_every=None,
+                family=family,
+                lipschitz_bound=L_used,
+            )
+            mlp_scalars = sum(parameter.numel() for parameter in model.parameters())
+            expected_scalars = (mlp_depth-1)*width**2 + (d+mlp_depth+1)*width + 1
+            assert mlp_scalars == expected_scalars
+            assert sum(value.numel() for value in model.state_dict().values()) == expected_scalars
+    
+            Y_mlp_test = predict_mlp_Rd(model, X_test)
+            Y_mlp_lip = predict_mlp_Rd(model, X_lip)
+    
+            mlp_test_mse = mse(Y_test, Y_mlp_test)
+            mlp_emp_lip = empirical_lipschitz_on_points(
+                X_lip,
+                Y_mlp_lip,
+                metric=metric,
+            )
+    
+            rows.append({
+                "run": run_seed,
+                "method": f"{family_name} target={target_ratio}x",
+                "d": d,
+                "metric": metric,
+                "N_train": N_train,
+                "N_test": N_test,
+                "N_lip": N_lip,
+                "test_mse": mlp_test_mse,
+                "empirical_lipschitz": mlp_emp_lip,
+                "L_hat_train": L_hat,
+                "L_used_cf": L_used,
+                "family": family,
+                "lipschitz_bound": math.prod(
+                    torch.linalg.matrix_norm(layer.weight.detach().double(), ord=2).item()
+                    for layer in model.net if isinstance(layer, nn.Linear)
+                ),
+                "width": width,
+                "mlp_depth": mlp_depth,
+                "target_scalar_ratio": target_ratio,
+                "stored_scalars": mlp_scalars,
+                "formula_scalars": formula_scalars,
+                "scalar_ratio_to_formula": mlp_scalars / formula_scalars,
+            })
 
     return rows
 
@@ -503,6 +629,9 @@ def summarize_results(df):
 
         rows.append({
             "method": method,
+            "family": sub["family"].iloc[0],
+            "L_used_cf_mean": sub["L_used_cf"].mean(),
+            "lipschitz_bound_mean": sub["lipschitz_bound"].mean(),
             "width": sub["width"].iloc[0],
             "mlp_depth": sub["mlp_depth"].iloc[0],
             "target_scalar_ratio": float(sub["target_scalar_ratio"].iloc[0]),
@@ -526,6 +655,51 @@ def summarize_results(df):
 # Main
 # ============================================================
 
+def latex_number(value, scientific=False):
+    """Format one finite number for use inside LaTeX math mode."""
+    if not math.isfinite(value):
+        return r"\mathrm{NA}"
+    if scientific and value != 0:
+        mantissa, exponent = f"{value:.3e}".split("e")
+        return rf"{mantissa}\times 10^{{{int(exponent)}}}"
+    return f"{value:.3f}"
+
+
+def summary_to_latex(summary_df, caption, label="tab:mlp_formula_budgets"):
+    """Return a complete table environment using standard LaTeX tabular."""
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\scriptsize",
+        rf"\caption{{{caption}}}",
+        rf"\label{{{label}}}",
+        r"\setlength{\tabcolsep}{4pt}",
+        r"\begin{tabular}{lrrrr}",
+        r"\hline",
+        r"Method & Scalars $P$ & $P/P_{\mathrm{formula}}$ & "
+        r"Test MSE $\pm$ std & Empirical Lip. $\pm$ std \\",
+        r"\hline",
+    ]
+    for row in summary_df.itertuples(index=False):
+        method = "Closed form" if pd.isna(row.width) else rf"{dict(unconstrained='MLP', spectral='SN MLP', orthogonal='Orth. MLP')[row.family]} $W={int(row.width)}$"
+        mse_cell = (
+            latex_number(row.test_mse_mean, scientific=True)
+            + r"\pm " + latex_number(row.test_mse_std, scientific=True)
+        )
+        lip_cell = (
+            latex_number(row.empirical_lipschitz_mean)
+            + r"\pm " + latex_number(row.empirical_lipschitz_std)
+        )
+        lines.append(
+            f"{method} & {int(row.stored_scalars)} & "
+            f"{row.scalar_ratio_to_formula:.4f} & "
+            f"${mse_cell}$ & ${lip_cell}$ " + r"\\"
+        )
+    lines.extend([r"\hline", r"\end{tabular}", r"\end{table}"])
+    return "\n".join(lines) + "\n"
+
+
+
 def main():
     # --------------------------------------------------------
     # Experiment settings
@@ -533,7 +707,7 @@ def main():
     d = 100
     metric = "l2"   # choose "l2" or "l1"
 
-    N_train = 1*(10**4)
+    N_train = 1*(10**3)
     N_test = 2000
     N_lip = 1000
 
@@ -542,7 +716,9 @@ def main():
     num_runs = 20
     base_seed = 12345
 
-    lipschitz_safety = 1.05
+    cv_folds = 5
+    cv_grid_size = 20
+    cv_span = 2.0
 
     # Target 50%, 100%, 150%, and 200% of formula storage.
     # Each equal-width architecture uses the nearest integer width.
@@ -561,6 +737,7 @@ def main():
     print("MLP target scalar ratios:", mlp_ratios)
     print("MLP depth:", mlp_depth)
     print("MLP epochs:", mlp_epochs)
+    print("CV folds / grid points / offset span:", cv_folds, cv_grid_size, cv_span)
 
     # --------------------------------------------------------
     # Run experiments
@@ -581,12 +758,16 @@ def main():
             low=low,
             high=high,
             metric=metric,
-            lipschitz_safety=lipschitz_safety,
+            cv_folds=cv_folds,
+            cv_grid_size=cv_grid_size,
+            cv_span=cv_span,
             mlp_ratios=mlp_ratios,
             mlp_depth=mlp_depth,
             mlp_lr=mlp_lr,
             mlp_epochs=mlp_epochs,
         )
+        print("L_D:", rows[0]["L_hat_train"], "selected L:", rows[0]["L_used_cf"],
+              "CV offset:", rows[0]["cv_offset"], "CV MSE:", rows[0]["cv_mse"])
 
         for row in rows:
             print(
@@ -619,7 +800,7 @@ def main():
     ratio_tag = "-".join(f"{ratio:g}" for ratio in mlp_ratios)
     output_stem = (
         f"exp_mlp_Rd_{metric}_d{d}_N{N_train}_depth{mlp_depth}"
-        f"_ratios{ratio_tag}"
+        f"_ratios{ratio_tag}_cv{cv_folds}x{cv_grid_size}_span{cv_span:g}_constrained"
     )
     raw_path = results_dir / f"{output_stem}_raw.csv"
     summary_path = results_dir / f"{output_stem}_summary.csv"
@@ -632,7 +813,7 @@ def main():
     text_table = pd.DataFrame({
         "Method": [
             "Closed form" if pd.isna(row.width) else (
-                f"MLP W={int(row.width)} "
+                f"{row.family} MLP W={int(row.width)} "
                 f"(target {100 * row.target_scalar_ratio:g}%)"
             )
             for row in summary_df.itertuples(index=False)
@@ -667,7 +848,20 @@ def main():
         + "The reported standard deviations are sample standard deviations "
         + "across runs. Empirical Lipschitz estimates are not certified upper bounds.\n"
     )
-    text_path.write_text(text_content, encoding="utf-8")
+    readable_path = results_dir / f"{output_stem}_readable.txt"
+    readable_path.write_text(text_content, encoding="utf-8")
+    caption = (
+        rf"Formula with {cv_folds}-fold CV and ReLU benchmarks; $d={d}$, "
+        rf"$N_{{\mathrm{{train}}}}={N_train}$, {num_runs} runs. "
+        rf"CV selects one of {cv_grid_size} offsets in $[0,{cv_span:g}]$ above fold-local "
+        r"$L_D$, then refits on all training data. SN and orthogonal MLPs use "
+        r"the selected formula bound. $P$ counts stored scalars; SN auxiliary "
+        r"buffers and the fixed output gain are removed for inference."
+    )
+    latex = summary_to_latex(summary_df, caption)
+    text_path.write_text(latex, encoding="utf-8")
+    tex_path = text_path.with_suffix(".tex")
+    tex_path.write_text(latex, encoding="utf-8")
 
     print("\nSummary table:")
     print(summary_df.to_string(index=False))
@@ -676,6 +870,8 @@ def main():
     print(raw_path)
     print(summary_path)
     print(text_path)
+    print(tex_path)
+    print(readable_path)
 
 
 if __name__ == "__main__":
