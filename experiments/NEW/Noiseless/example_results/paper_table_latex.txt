@@ -1,0 +1,99 @@
+% Preamble: \usepackage{booktabs,subcaption,graphicx}
+\begin{table*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\newcommand{\cfbenchcell}[4]{\shortstack{$(#1\pm#2)\times10^{#3}$\\$[#4]$}}
+\caption{Test MSE (mean $\pm$ sample standard deviation over 2 runs). Bracketed values express each method's mean MSE as a percentage of the formula's mean MSE; lower is better. Uniform inputs on $[-1,1]^d$; $N_{\mathrm{train}}=1000$, $N_{\mathrm{test}}=2000$. The formula uses $L=1$, with CV off. MLPs have 3 hidden ReLU layers and use 1001 full-batch Adam updates at learning rate $0.001$. SN and orthogonal MLP bounds are $1$.}
+\label{tab:grouped-benchmarks-1}
+\begin{subtable}{\textwidth}
+\centering
+\caption{Hard}
+\label{tab:grouped-benchmarks-1-1}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lrccccc@{}}
+\toprule
+Target & $d$ & Formula & ReLU MLP & SN MLP & Orthogonal MLP & Constant \\
+\midrule
+64 signed bumps & 2 &
+  \cfbenchcell{2.235}{0.177}{-4}{100.0\%} &
+  \cfbenchcell{1.048}{0.323}{-3}{468.7\%} &
+  \cfbenchcell{1.718}{0.070}{-3}{768.4\%} &
+  \cfbenchcell{1.643}{0.017}{-3}{735.1\%} &
+  \cfbenchcell{2.062}{0.015}{-3}{922.6\%} \\
+\addlinespace[3pt]
+Folding: 4 layers & 2 &
+  \cfbenchcell{9.119}{3.013}{-5}{100.0\%} &
+  \cfbenchcell{3.415}{0.499}{-4}{374.5\%} &
+  \cfbenchcell{9.302}{0.791}{-3}{10200.5\%} &
+  \cfbenchcell{6.562}{1.174}{-3}{7195.6\%} &
+  \cfbenchcell{6.231}{1.164}{-2}{68335.9\%} \\
+\addlinespace[3pt]
+\bottomrule
+\end{tabular}%
+}
+\end{subtable}
+\par\medskip
+
+\begin{subtable}{\textwidth}
+\centering
+\caption{Tied}
+\label{tab:grouped-benchmarks-1-2}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lrccccc@{}}
+\toprule
+Target & $d$ & Formula & ReLU MLP & SN MLP & Orthogonal MLP & Constant \\
+\midrule
+Folding: 1 layer & 100 &
+  \cfbenchcell{1.315}{0.055}{-1}{100.0\%} &
+  \cfbenchcell{1.404}{0.107}{-1}{106.7\%} &
+  \cfbenchcell{1.234}{0.055}{-1}{93.8\%} &
+  \cfbenchcell{1.261}{0.046}{-1}{95.8\%} &
+  \cfbenchcell{1.200}{0.037}{-1}{91.3\%} \\
+\addlinespace[3pt]
+Folding: 4 layers & 100 &
+  \cfbenchcell{5.325}{0.311}{-2}{100.0\%} &
+  \cfbenchcell{5.021}{0.262}{-2}{94.3\%} &
+  \cfbenchcell{4.918}{0.256}{-2}{92.4\%} &
+  \cfbenchcell{4.781}{0.281}{-2}{89.8\%} &
+  \cfbenchcell{4.221}{0.268}{-2}{79.3\%} \\
+\addlinespace[3pt]
+\bottomrule
+\end{tabular}%
+}
+\end{subtable}
+\par\medskip
+
+\begin{subtable}{\textwidth}
+\centering
+\caption{MLP exploits different inductive bias}
+\label{tab:grouped-benchmarks-1-3}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lrccccc@{}}
+\toprule
+Target & $d$ & Formula & ReLU MLP & SN MLP & Orthogonal MLP & Constant \\
+\midrule
+Affine, $\|w\|_1=1$ & 100 &
+  \cfbenchcell{5.672}{0.137}{-3}{100.0\%} &
+  \cfbenchcell{2.863}{0.155}{-4}{5.0\%} &
+  \cfbenchcell{1.651}{0.215}{-4}{2.9\%} &
+  \cfbenchcell{2.817}{0.073}{-3}{49.7\%} &
+  \cfbenchcell{5.260}{0.018}{-3}{92.7\%} \\
+\addlinespace[3pt]
+Tanh ridge & 100 &
+  \cfbenchcell{1.475}{0.228}{-1}{100.0\%} &
+  \cfbenchcell{1.148}{0.242}{-2}{7.8\%} &
+  \cfbenchcell{1.190}{0.061}{-2}{8.1\%} &
+  \cfbenchcell{6.165}{1.605}{-2}{41.8\%} &
+  \cfbenchcell{1.725}{0.421}{-1}{117.0\%} \\
+\addlinespace[3pt]
+\bottomrule
+\end{tabular}%
+}
+\end{subtable}
+\par\smallskip
+\begin{minipage}{\textwidth}
+\footnotesize
+\emph{Notes.} $d=2$: $P_{\mathrm{formula}}=3\,001$, $P_{\mathrm{MLP}}=2\,961$ (ratio $0.9867$); $d=100$: $P_{\mathrm{formula}}=101\,001$, $P_{\mathrm{MLP}}=100\,801$ (ratio $0.9980$). All three MLP families match these stored-scalar counts. The constant predictor stores the training-label mean. The panel labels denote the expected behavior; a measured tie means all three MLP percentages lie in $[85\%,115\%]$. The affine target has Euclidean Lipschitz constant $\|w\|_2<1$, whereas the tanh target uses $\|w\|_2=1$ and an interior zero crossing.
+\end{minipage}
+\end{table*}

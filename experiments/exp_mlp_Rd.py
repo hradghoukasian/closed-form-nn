@@ -33,6 +33,8 @@ from core.evaluation import mse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+oracle_Lip = True
+
 
 # ============================================================
 # Metrics on R^d
@@ -174,6 +176,54 @@ def empirical_lipschitz_on_points(X, Y_pred, metric, eps=1e-12):
 # Random exactly 1-Lipschitz target
 # ============================================================
 
+# One dominant direction version
+# def make_random_1_lip_tanh_target(
+#     d,
+#     metric="l2",
+#     low=-1.0,
+#     high=1.0,
+#     seed=None,
+# ):
+#     """
+#     Generate
+
+#         f(x) = tanh(W_norm^T x + b)
+
+#     so that f is exactly 1-Lipschitz with respect to the chosen metric.
+
+#     If metric == "l2":
+#         normalize W so ||W||_2 = 1.
+
+#     If metric == "l1":
+#         normalize W so ||W||_infty = 1.
+
+#     We choose b = - W_norm^T x0 for a random interior point x0,
+#     so tanh' reaches its maximum value 1 somewhere inside the domain.
+#     """
+#     rng = np.random.default_rng(seed)
+
+#     W = rng.standard_normal(d)
+
+#     if metric == "l2":
+#         W = W / np.linalg.norm(W, ord=2)
+
+#     elif metric == "l1":
+#         W = W / np.max(np.abs(W))
+
+#     else:
+#         raise ValueError("metric must be either 'l1' or 'l2'")
+
+#     margin = 0.1 * (high - low)
+#     x0 = rng.uniform(low + margin, high - margin, size=d)
+
+#     b = -np.dot(W, x0)
+
+#     def f(X):
+#         X = np.asarray(X)
+#         return np.tanh(X @ W + b)
+
+#     return f, W, b, x0
+
 def make_random_1_lip_tanh_target(
     d,
     metric="l2",
@@ -181,43 +231,27 @@ def make_random_1_lip_tanh_target(
     high=1.0,
     seed=None,
 ):
-    """
-    Generate
-
-        f(x) = tanh(W_norm^T x + b)
-
-    so that f is exactly 1-Lipschitz with respect to the chosen metric.
-
-    If metric == "l2":
-        normalize W so ||W||_2 = 1.
-
-    If metric == "l1":
-        normalize W so ||W||_infty = 1.
-
-    We choose b = - W_norm^T x0 for a random interior point x0,
-    so tanh' reaches its maximum value 1 somewhere inside the domain.
-    """
+    """Random additive tanh teacher, exactly 1-Lipschitz."""
     rng = np.random.default_rng(seed)
 
-    W = rng.standard_normal(d)
+    # Equal-magnitude weights with random signs.
+    signs = rng.choice([-1.0, 1.0], size=d)
 
     if metric == "l2":
-        W = W / np.linalg.norm(W, ord=2)
-
+        W = signs / np.sqrt(d)
     elif metric == "l1":
-        W = W / np.max(np.abs(W))
-
+        W = signs
     else:
         raise ValueError("metric must be either 'l1' or 'l2'")
 
+    # All tanh derivatives equal 1 at the interior point x0.
     margin = 0.1 * (high - low)
     x0 = rng.uniform(low + margin, high - margin, size=d)
-
-    b = -np.dot(W, x0)
+    b = -x0
 
     def f(X):
         X = np.asarray(X)
-        return np.tanh(X @ W + b)
+        return np.tanh(X + b) @ W
 
     return f, W, b, x0
 
@@ -503,10 +537,36 @@ def run_one_experiment(
     # --------------------------------------------------------
     # Closed-form estimator
     # --------------------------------------------------------
-    L_hat, L_used, cv_info = select_lipschitz_cv(
-        X_train, Y_train, metric, run_seed+505,
-        folds=cv_folds, grid_size=cv_grid_size, span=cv_span,
-    )
+    if oracle_Lip == False:
+      # Empirical 
+        L_hat, L_used, cv_info = select_lipschitz_cv(
+            X_train, Y_train, metric, run_seed+505,
+            folds=cv_folds, grid_size=cv_grid_size, span=cv_span,
+        )
+    else:
+        #---------------#
+        # Oracle: Start #
+        #---------------#
+        # Empirical Lipschitz constant, retained for reporting.
+        L_hat = estimate_lipschitz_pairwise_fast(
+            X_train, Y_train, metric=metric
+        )
+
+        # Fixed formula Lipschitz bound: choose 1.0 or 2.0.
+        L_used = 2.0
+
+        # No CV; retain fields expected by the reporting code.
+        cv_info = {
+            "cv_offset": np.nan,
+            "cv_mse": np.nan,
+            "cv_offsets": "[]",
+            "cv_scores": "[]",
+            "cv_fold_L_D": "[]",
+            "cv_folds": 0,
+        }
+        #---------------#
+        # Oracle: End #
+        #---------------#
 
     Y_cf_test = formula_grid_predict(X_test, X_train, Y_train, [L_used], metric)[0]
     Y_cf_lip = formula_grid_predict(X_lip, X_train, Y_train, [L_used], metric)[0]
@@ -707,15 +767,16 @@ def main():
     d = 100
     metric = "l2"   # choose "l2" or "l1"
 
-    N_train = 1*(10**3)
+    N_train = 1*(10**2)
     N_test = 2000
     N_lip = 1000
 
     low, high = -1.0, 1.0
 
-    num_runs = 20
+    num_runs = 2#20
     base_seed = 12345
 
+ 
     cv_folds = 5
     cv_grid_size = 20
     cv_span = 2.0

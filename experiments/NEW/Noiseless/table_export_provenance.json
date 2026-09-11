@@ -1,0 +1,11 @@
+{
+  "change": "Add three captioned subtables; reuse all 60 existing evaluation records unchanged.",
+  "training_config_preserved": "example_results/config.json",
+  "table_export_sha256": "934f01cee410836b28df33f38b8022baf77ec1e52952d404e0e86833ad9085f8",
+  "current_source_sha256": {
+    "benchmark_helpers.py": "a7ec0965c2a1a1fd7a995e31a91cb35979e93315a161a13fa7034987e49e6cf3",
+    "benchmark_tables.py": "934f01cee410836b28df33f38b8022baf77ec1e52952d404e0e86833ad9085f8",
+    "benchmark_targets.py": "1d8c71c8c98804ec01749c1956c343524a360f479ebb20dbb1d434c97354382d",
+    "exp_mlp_Rd.py": "58d25c1d09528788cc3eeb84a732709dff15eeee2c2d60c9fafc2e571da1ba23"
+  }
+}

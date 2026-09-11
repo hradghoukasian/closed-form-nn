@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "default_evaluations": 60,
+  "neural_models": 36,
+  "old_target_values_match_both_seeds": true,
+  "old_five_experiment_mses_match": true,
+  "copied_helper_definitions_unchanged": true,
+  "counts_and_lipschitz_bounds_verified": true,
+  "ratios_are_ratios_of_means": true,
+  "cv_smoke_evaluations": 30,
+  "cv_refits_on_all_training_samples": true,
+  "single_run_standard_deviation_undefined": true,
+  "latex_txt_identical": true,
+  "latex_compiles_without_overfull_boxes": true,
+  "paper_table_subcaptions_verified": true,
+  "paper_table_one_page_layout_verified": true,
+  "new_paper_export_handles_single_run_cv": true,
+  "numerical_results_unchanged_by_table_update": true
+}
