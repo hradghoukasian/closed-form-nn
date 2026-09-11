@@ -1,0 +1,11 @@
+epoch=0, train_mse=2.993125e-02
+epoch=100, train_mse=8.387167e-08
+epoch=200, train_mse=1.048248e-11
+epoch=300, train_mse=1.402049e-15
+epoch=400, train_mse=1.141306e-15
+epoch=500, train_mse=1.257408e-15
+epoch=600, train_mse=1.364450e-15
+epoch=700, train_mse=1.314945e-15
+epoch=800, train_mse=1.581093e-15
+epoch=900, train_mse=1.946079e-15
+epoch=1000, train_mse=1.319663e-15

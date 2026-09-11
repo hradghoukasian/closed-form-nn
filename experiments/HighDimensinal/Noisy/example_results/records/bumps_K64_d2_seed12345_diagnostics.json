@@ -1,0 +1,23 @@
+{
+  "train_mean": -0.002148428143332634,
+  "test_mean": 0.0012244317488652016,
+  "test_variance": 0.0020617747009744436,
+  "train_mean_baseline_mse": 0.0020731508848268404,
+  "target_euclidean_L": 1.0,
+  "bumps": 64,
+  "radius": 0.125,
+  "train_support_fraction": 0.756,
+  "test_support_fraction": 0.781,
+  "bumps_observed": 64,
+  "test_unseen_bump_fraction": 0.0,
+  "case": "bumps_K64_d2",
+  "run": 12345,
+  "L_hat_train": 0.9999999718985241,
+  "L_used_cf": 1.0,
+  "cv_folds": 0,
+  "cv_offset": NaN,
+  "cv_mse": NaN,
+  "cv_offsets": "[]",
+  "cv_scores": "[]",
+  "cv_fold_L_D": "[]"
+}

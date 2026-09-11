@@ -1,0 +1,111 @@
+{
+  "settings": {
+    "sigmas": [
+      0.1,
+      0.2,
+      0.8
+    ],
+    "num_runs": 2,
+    "n_train": 1000,
+    "n_test": 2000,
+    "n_lip": 1000,
+    "use_beta_cv": true,
+    "cv_folds": 5,
+    "beta_grid_size": 30,
+    "fixed_beta": 0.0,
+    "formula_l": 1.0,
+    "nn_lipschitz": 1.0,
+    "mlp_ratios": [
+      1.0
+    ],
+    "mlp_depth": 3,
+    "mlp_lr": 0.001,
+    "mlp_epochs": 1000,
+    "base_seed": 12345,
+    "save_models": true,
+    "metric": "l2",
+    "d": 100
+  },
+  "cases": [
+    {
+      "case": "voronoi_K64_d100",
+      "name": "64 signed Voronoi tents",
+      "group": "Hard",
+      "family": "voronoi",
+      "level": 64,
+      "d": 100
+    },
+    {
+      "case": "folds_T1_d100",
+      "name": "Folding: 1 layer",
+      "group": "Tied",
+      "family": "folds",
+      "level": 1,
+      "d": 100
+    },
+    {
+      "case": "folds_T4_d100",
+      "name": "Folding: 4 layers",
+      "group": "Tied",
+      "family": "folds",
+      "level": 4,
+      "d": 100
+    }
+  ],
+  "run_seeds": [
+    12345,
+    13345
+  ],
+  "workers": 6,
+  "beta_grid": [
+    0.0,
+    4.08248290463863,
+    4.384889045722973,
+    4.687295186807316,
+    4.989701327891659,
+    5.292107468976003,
+    5.5945136100603445,
+    5.896919751144688,
+    6.199325892229031,
+    6.501732033313374,
+    6.804138174397717,
+    7.10654431548206,
+    7.408950456566403,
+    7.711356597650745,
+    8.013762738735089,
+    8.316168879819433,
+    8.618575020903775,
+    8.920981161988117,
+    9.22338730307246,
+    9.525793444156804,
+    9.828199585241146,
+    10.130605726325488,
+    10.433011867409832,
+    10.735418008494175,
+    11.037824149578519,
+    11.340230290662861,
+    11.642636431747203,
+    11.945042572831547,
+    12.24744871391589,
+    20.0
+  ],
+  "python": "3.12.14",
+  "torch": "2.14.0+cpu",
+  "numpy": "2.3.5",
+  "pandas": "2.2.3",
+  "scipy": "1.17.0",
+  "device": "cpu",
+  "source_sha256": {
+    "benchmark_helpers.py": "a7ec0965c2a1a1fd7a995e31a91cb35979e93315a161a13fa7034987e49e6cf3",
+    "benchmark_tables.py": "934f01cee410836b28df33f38b8022baf77ec1e52952d404e0e86833ad9085f8",
+    "benchmark_targets.py": "1d8c71c8c98804ec01749c1956c343524a360f479ebb20dbb1d434c97354382d",
+    "beta_cv.py": "048ba4ddc98671499fa86c4c6bc9a4b7f40828c13537d3964d0969f85ea89a80",
+    "exp_mlp_Rd.py": "58d25c1d09528788cc3eeb84a732709dff15eeee2c2d60c9fafc2e571da1ba23",
+    "exp_noisy_grouped_Rd.py": "fa49657c6a3764fd34139b57a52ec8e02ff5f6a849e7b51ad0547ff553ba6f7f",
+    "noisy_tables.py": "966fe2826029140bf9465ee6d161274827c12ebe5aca4f5f44ecac7c8540e86f",
+    "noisy_targets.py": "93c0a9b7903d400f4a1cce0e8d2005d33257efb15bdc37cec26d5638c83d757c"
+  },
+  "status": "complete",
+  "rows": 90,
+  "elapsed_seconds": 187.00932956999895
+}

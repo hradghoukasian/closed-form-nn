@@ -1,0 +1,93 @@
+{
+  "settings": {
+    "num_runs": 2,
+    "n_train": 1000,
+    "n_test": 2000,
+    "n_lip": 1000,
+    "use_cv": false,
+    "fixed_l": 1.0,
+    "cv_folds": 5,
+    "cv_grid_size": 20,
+    "cv_span": 2.0,
+    "nn_lipschitz": 1.0,
+    "mlp_ratios": [
+      1.0
+    ],
+    "mlp_depth": 3,
+    "mlp_lr": 0.001,
+    "mlp_epochs": 1000,
+    "base_seed": 12345,
+    "save_models": true,
+    "metric": "l2"
+  },
+  "cases": [
+    {
+      "case": "bumps_K64_d2",
+      "name": "64 signed bumps",
+      "group": "(Expected) Clear wins",
+      "family": "bumps",
+      "level": 8,
+      "d": 2
+    },
+    {
+      "case": "folds_T4_d2",
+      "name": "Folding: 4 layers",
+      "group": "(Expected) Clear wins",
+      "family": "folds",
+      "level": 4,
+      "d": 2
+    },
+    {
+      "case": "folds_T1_d100",
+      "name": "Folding: 1 layer",
+      "group": "(Expected) Clear near ties [85%-115%]",
+      "family": "folds",
+      "level": 1,
+      "d": 100
+    },
+    {
+      "case": "folds_T4_d100",
+      "name": "Folding: 4 layers",
+      "group": "(Expected) Clear near ties [85%-115%]",
+      "family": "folds",
+      "level": 4,
+      "d": 100
+    },
+    {
+      "case": "affine_l1_d100",
+      "name": "Affine, ||w||_1=1",
+      "group": "(Expected) Clear losses",
+      "family": "affine",
+      "level": 1,
+      "d": 100
+    },
+    {
+      "case": "tanh_ridge_d100",
+      "name": "Tanh ridge",
+      "group": "(Expected) Clear losses",
+      "family": "tanh_ridge",
+      "level": 1,
+      "d": 100
+    }
+  ],
+  "run_seeds": [
+    12345,
+    13345
+  ],
+  "workers": 6,
+  "python": "3.12.14",
+  "torch": "2.14.0+cpu",
+  "numpy": "2.3.5",
+  "pandas": "2.2.3",
+  "scipy": "1.17.0",
+  "device": "cpu",
+  "source_sha256": {
+    "benchmark_helpers.py": "a7ec0965c2a1a1fd7a995e31a91cb35979e93315a161a13fa7034987e49e6cf3",
+    "benchmark_tables.py": "433caa5b8a842cfcd1f15da77997eb430992ab384d8603f8c491d1caa488b5a6",
+    "benchmark_targets.py": "1d8c71c8c98804ec01749c1956c343524a360f479ebb20dbb1d434c97354382d",
+    "exp_mlp_Rd.py": "4aa902e37696ebe3132792016940fd089d1a7b71ddadff965c5b843187c8d699"
+  },
+  "status": "complete",
+  "rows": 60,
+  "elapsed_seconds": 127.52616869299891
+}

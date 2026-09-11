@@ -1,0 +1,61 @@
+% Preamble: \usepackage{booktabs,subcaption,graphicx}
+\begin{table*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Clean test MSE with additive Gaussian noise $\sigma=0.1$; mean $\pm$ sample standard deviation over 2 seeds. Brackets give $100\,\mathrm{MSE}_{\mathrm{method}}/\mathrm{MSE}_{\mathrm{formula}}$ using the respective seed means. Inputs are uniform on $[-1,1]^{100}$, with $N_{\mathrm{train}}=1000$ and $N_{\mathrm{test}}=2000$. The formula selects the averaging radius $\beta$ by 5-fold CV over 30 predefined candidates using noisy training labels, then recomputes all averages using the full training set. The formula uses fixed $L=1$; SN and orthogonal networks have bound 1. All MLPs use 3 hidden ReLU layers and 1001 full-batch Adam updates with learning rate $0.001$, without early stopping.}
+\label{tab:noisy-0p1-ratio1}
+\begin{subtable}{\textwidth}
+\centering
+\caption{Hard}
+\label{tab:noisy-0p1-ratio1-1}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Target & Formula & ReLU MLP & SN MLP & Orthogonal MLP & Constant \\
+\midrule
+64 signed Voronoi tents &
+  \shortstack{$(4.846\pm 0.002)\times10^{-2}$\\$[100.0\%]$} &
+  \shortstack{$(5.898\pm 0.042)\times10^{-2}$\\$[121.7\%]$} &
+  \shortstack{$(5.641\pm 0.037)\times10^{-2}$\\$[116.4\%]$} &
+  \shortstack{$(5.263\pm 0.042)\times10^{-2}$\\$[108.6\%]$} &
+  \shortstack{$(4.847\pm 0.003)\times10^{-2}$\\$[100.0\%]$} \\
+\addlinespace[3pt]
+\bottomrule
+\end{tabular}%
+}
+\end{subtable}
+\par\medskip
+\begin{subtable}{\textwidth}
+\centering
+\caption{Tied}
+\label{tab:noisy-0p1-ratio1-2}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Target & Formula & ReLU MLP & SN MLP & Orthogonal MLP & Constant \\
+\midrule
+Folding: 1 layer &
+  \shortstack{$(1.201\pm 0.038)\times10^{-1}$\\$[100.0\%]$} &
+  \shortstack{$(1.424\pm 0.131)\times10^{-1}$\\$[118.5\%]$} &
+  \shortstack{$(1.244\pm 0.063)\times10^{-1}$\\$[103.6\%]$} &
+  \shortstack{$(1.258\pm 0.051)\times10^{-1}$\\$[104.7\%]$} &
+  \shortstack{$(1.200\pm 0.036)\times10^{-1}$\\$[99.9\%]$} \\
+\addlinespace[3pt]
+Folding: 4 layers &
+  \shortstack{$(4.225\pm 0.278)\times10^{-2}$\\$[100.0\%]$} &
+  \shortstack{$(5.436\pm 0.261)\times10^{-2}$\\$[128.7\%]$} &
+  \shortstack{$(5.198\pm 0.220)\times10^{-2}$\\$[123.0\%]$} &
+  \shortstack{$(4.903\pm 0.264)\times10^{-2}$\\$[116.0\%]$} &
+  \shortstack{$(4.219\pm 0.269)\times10^{-2}$\\$[99.9\%]$} \\
+\addlinespace[3pt]
+\bottomrule
+\end{tabular}%
+}
+\end{subtable}
+\par\smallskip
+\begin{minipage}{\textwidth}
+\footnotesize
+\emph{Notes.} Hard and Tied are target-group labels, not conclusions about noisy results. Signed Voronoi tents replace the earlier disjoint-ball bumps to obtain nonzero uniform samples in 100 dimensions; each target is 1-Lipschitz. Stored scalars: formula 101,001; each MLP 100,801 (ratio 0.9980, width 200). The constant predicts the noisy training-label mean. Only the formula's radius is cross-validated; the neural training schedule is fixed.
+\end{minipage}
+\end{table*}

@@ -1,0 +1,16 @@
+{
+  "original_neural_and_cv_source": "selected_targets_B12_N1000/experiments/exp_mlp_Rd.py",
+  "sha256": "713c4d49bcb95462ca1a94392b099f4f150fad743990b16dff8eb9111c4d5ff7",
+  "unchanged_definitions": [
+    "ReLUMlpRd",
+    "empirical_lipschitz_on_points",
+    "estimate_lipschitz_pairwise_fast",
+    "formula_grid_predict",
+    "materialize_constraints",
+    "predict_mlp_Rd",
+    "sample_uniform_Rd",
+    "select_lipschitz_cv",
+    "train_mlp_Rd",
+    "width_for_parameter_budget"
+  ]
+}

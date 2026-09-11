@@ -1,0 +1,17 @@
+{
+  "train_mean": -0.2684593518322008,
+  "test_mean": -0.2817843446548261,
+  "test_variance": 0.12249064856419614,
+  "train_mean_baseline_mse": 0.12266820399791915,
+  "target_euclidean_L": 1.0,
+  "case": "folds_T1_d100",
+  "run": 13345,
+  "L_hat_train": 0.2859981495839337,
+  "L_used_cf": 1.0,
+  "cv_folds": 0,
+  "cv_offset": NaN,
+  "cv_mse": NaN,
+  "cv_offsets": "[]",
+  "cv_scores": "[]",
+  "cv_fold_L_D": "[]"
+}

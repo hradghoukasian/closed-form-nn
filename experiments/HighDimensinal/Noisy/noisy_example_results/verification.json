@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "rows": 90,
+  "summary_rows": 45,
+  "restored_neural_states": 54,
+  "restored_formula_states": 18,
+  "independent_cv_reference": true,
+  "full_training_refits": true,
+  "clean_test_mse_recomputed": true,
+  "paired_noise": true,
+  "scalar_counts": true,
+  "recorded_lipschitz_bounds": true,
+  "source_hashes_match": true,
+  "ratios_of_means": true,
+  "latex_compiled": true,
+  "pdf_pages": 3,
+  "all_pdf_pages_visually_checked": true
+}

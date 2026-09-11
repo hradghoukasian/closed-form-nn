@@ -1,0 +1,6 @@
+method,width,stored_scalars,formula_scalars,scalar_ratio_to_formula
+Formula,,101001,101001,1.0
+ReLU MLP,200.0,100801,101001,0.9980198215859248
+Spectral MLP,200.0,100801,101001,0.9980198215859248
+Orthogonal MLP,200.0,100801,101001,0.9980198215859248
+Training-mean constant,,1,101001,9.900892070375541e-06
