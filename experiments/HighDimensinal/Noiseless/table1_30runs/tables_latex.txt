@@ -1,0 +1,117 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Raw test MSE: mean +/- sample std. Target MLP/formula storage ratio 1. 30 runs; N\_train=1000, N\_test=2000, N\_lip=1000; Euclidean metric. Formula: fixed L=1; constrained NN bound=1. 3 hidden layers, Adam lr=0.001, 1001 full-batch updates.}
+\begin{tabular}{lrccccc}
+\hline
+Target & $d$ & Formula & ReLU MLP & Spectral & Orthogonal & Constant \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear wins}} \\
+64 signed bumps & 2 & $2.156\times 10^{-4}\pm 1.981\times 10^{-5}$ & $9.000\times 10^{-4}\pm 1.563\times 10^{-4}$ & $1.596\times 10^{-3}\pm 1.585\times 10^{-4}$ & $1.640\times 10^{-3}\pm 1.211\times 10^{-4}$ & $2.037\times 10^{-3}\pm 6.258\times 10^{-5}$ \\
+Folding: 4 layers & 2 & $8.339\times 10^{-5}\pm 2.939\times 10^{-5}$ & $1.275\times 10^{-4}\pm 9.520\times 10^{-5}$ & $1.119\times 10^{-2}\pm 3.345\times 10^{-3}$ & $8.375\times 10^{-3}\pm 2.115\times 10^{-3}$ & $5.679\times 10^{-2}\pm 2.055\times 10^{-2}$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear near ties [85\%-115\%]}} \\
+Folding: 1 layer & 100 & $1.289\times 10^{-1}\pm 4.504\times 10^{-3}$ & $1.351\times 10^{-1}\pm 6.010\times 10^{-3}$ & $1.214\times 10^{-1}\pm 5.250\times 10^{-3}$ & $1.246\times 10^{-1}\pm 5.566\times 10^{-3}$ & $1.204\times 10^{-1}\pm 4.615\times 10^{-3}$ \\
+Folding: 4 layers & 100 & $5.158\times 10^{-2}\pm 1.953\times 10^{-3}$ & $4.976\times 10^{-2}\pm 2.891\times 10^{-3}$ & $4.811\times 10^{-2}\pm 2.617\times 10^{-3}$ & $4.714\times 10^{-2}\pm 2.424\times 10^{-3}$ & $4.104\times 10^{-2}\pm 2.206\times 10^{-3}$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear losses}} \\
+Affine, ||w||\_1=1 & 100 & $5.618\times 10^{-3}\pm 3.188\times 10^{-4}$ & $4.988\times 10^{-4}\pm 1.916\times 10^{-4}$ & $2.575\times 10^{-4}\pm 7.489\times 10^{-5}$ & $2.989\times 10^{-3}\pm 2.280\times 10^{-4}$ & $5.167\times 10^{-3}\pm 2.568\times 10^{-4}$ \\
+Tanh ridge & 100 & $1.531\times 10^{-1}\pm 1.385\times 10^{-2}$ & $1.056\times 10^{-2}\pm 1.577\times 10^{-3}$ & $1.233\times 10^{-2}\pm 2.867\times 10^{-3}$ & $6.121\times 10^{-2}\pm 7.247\times 10^{-3}$ & $1.858\times 10^{-1}\pm 2.810\times 10^{-2}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{MSE as a percentage of the formula. Target MLP/formula storage ratio 1. 30 runs; N\_train=1000, N\_test=2000, N\_lip=1000; Euclidean metric. Formula: fixed L=1; constrained NN bound=1. 3 hidden layers, Adam lr=0.001, 1001 full-batch updates.}
+\begin{tabular}{lrccccc}
+\hline
+Target & $d$ & Formula & ReLU MLP & Spectral & Orthogonal & Constant \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear wins}} \\
+64 signed bumps & 2 & $100.0\%$ & $417.4\%$ & $740.4\%$ & $760.9\%$ & $944.9\%$ \\
+Folding: 4 layers & 2 & $100.0\%$ & $152.9\%$ & $13416.4\%$ & $10043.3\%$ & $68096.0\%$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear near ties [85\%-115\%]}} \\
+Folding: 1 layer & 100 & $100.0\%$ & $104.8\%$ & $94.2\%$ & $96.6\%$ & $93.4\%$ \\
+Folding: 4 layers & 100 & $100.0\%$ & $96.5\%$ & $93.3\%$ & $91.4\%$ & $79.6\%$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear losses}} \\
+Affine, ||w||\_1=1 & 100 & $100.0\%$ & $8.9\%$ & $4.6\%$ & $53.2\%$ & $92.0\%$ \\
+Tanh ridge & 100 & $100.0\%$ & $6.9\%$ & $8.1\%$ & $40.0\%$ & $121.3\%$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{MSE as a percentage of the constant predictor. Target MLP/formula storage ratio 1. 30 runs; N\_train=1000, N\_test=2000, N\_lip=1000; Euclidean metric. Formula: fixed L=1; constrained NN bound=1. 3 hidden layers, Adam lr=0.001, 1001 full-batch updates.}
+\begin{tabular}{lrccccc}
+\hline
+Target & $d$ & Formula & ReLU MLP & Spectral & Orthogonal & Constant \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear wins}} \\
+64 signed bumps & 2 & $10.6\%$ & $44.2\%$ & $78.4\%$ & $80.5\%$ & $100.0\%$ \\
+Folding: 4 layers & 2 & $0.1\%$ & $0.2\%$ & $19.7\%$ & $14.7\%$ & $100.0\%$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear near ties [85\%-115\%]}} \\
+Folding: 1 layer & 100 & $107.0\%$ & $112.2\%$ & $100.8\%$ & $103.4\%$ & $100.0\%$ \\
+Folding: 4 layers & 100 & $125.7\%$ & $121.3\%$ & $117.2\%$ & $114.9\%$ & $100.0\%$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear losses}} \\
+Affine, ||w||\_1=1 & 100 & $108.7\%$ & $9.7\%$ & $5.0\%$ & $57.8\%$ & $100.0\%$ \\
+Tanh ridge & 100 & $82.4\%$ & $5.7\%$ & $6.6\%$ & $32.9\%$ & $100.0\%$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Empirical Lipschitz estimate: mean +/- sample std. Target MLP/formula storage ratio 1. 30 runs; N\_train=1000, N\_test=2000, N\_lip=1000; Euclidean metric. Formula: fixed L=1; constrained NN bound=1. 3 hidden layers, Adam lr=0.001, 1001 full-batch updates.}
+\begin{tabular}{lrccccc}
+\hline
+Target & $d$ & Formula & ReLU MLP & Spectral & Orthogonal & Constant \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear wins}} \\
+64 signed bumps & 2 & $1.0\pm 0.0$ & $1.1\pm 0.1$ & $0.2\pm 0.1$ & $0.2\pm 0.1$ & $0.0\pm 0.0$ \\
+Folding: 4 layers & 2 & $1.0\pm 0.0$ & $1.2\pm 0.1$ & $0.6\pm 0.1$ & $0.6\pm 0.1$ & $0.0\pm 0.0$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear near ties [85\%-115\%]}} \\
+Folding: 1 layer & 100 & $0.1\pm 0.0$ & $0.2\pm 0.0$ & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.0\pm 0.0$ \\
+Folding: 4 layers & 100 & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.0\pm 0.0$ \\
+\hline
+\multicolumn{7}{l}{\textbf{(Expected) Clear losses}} \\
+Affine, ||w||\_1=1 & 100 & $0.0\pm 0.0$ & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.1\pm 0.0$ & $0.0\pm 0.0$ \\
+Tanh ridge & 100 & $0.1\pm 0.0$ & $0.3\pm 0.0$ & $0.2\pm 0.0$ & $0.2\pm 0.0$ & $0.0\pm 0.0$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Stored inference scalars: coordinates, labels and one bound for the formula; weights and biases for MLPs; one training-label mean for the constant predictor.}
+\begin{tabular}{rlrrrr}
+\hline
+$d$ & Method & Width & $P$ & $P_{\mathrm{formula}}$ & $P/P_{\mathrm{formula}}$ \\
+\hline
+2 & Formula & N/A & 3001 & 3001 & 1.000000 \\
+2 & ReLU MLP & 37 & 2961 & 3001 & 0.986671 \\
+2 & Spectral MLP & 37 & 2961 & 3001 & 0.986671 \\
+2 & Orthogonal MLP & 37 & 2961 & 3001 & 0.986671 \\
+2 & Training-mean constant & N/A & 1 & 3001 & 0.000333 \\
+100 & Formula & N/A & 101001 & 101001 & 1.000000 \\
+100 & ReLU MLP & 200 & 100801 & 101001 & 0.998020 \\
+100 & Spectral MLP & 200 & 100801 & 101001 & 0.998020 \\
+100 & Orthogonal MLP & 200 & 100801 & 101001 & 0.998020 \\
+100 & Training-mean constant & N/A & 1 & 101001 & 0.000010 \\
+\hline
+\end{tabular}
+\end{table}
