@@ -7,7 +7,7 @@ The expected groups describe the earlier results; measured outcomes can change.
 # ============================================================
 # USER SETTINGS
 # ============================================================
-NUM_RUNS = 2                   # Set to 1, 2, 20, etc.
+NUM_RUNS = 30                   # Set to 1, 2, 20, etc.
 N_TRAIN = 1000
 N_TEST = 2000
 N_LIP = 1000                  # Points for empirical predictor-Lipschitz estimates.
